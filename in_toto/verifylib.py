@@ -365,7 +365,7 @@ def verify_match_rule(rule, artifact_queue, artifacts, links):
     # Check artifact paths
     if path not in target_artifacts:
       raise RuleVerficationFailed("Rule {0} failed, '{1}' not in target "
-          "{3}s".format(rule, path, target_type))
+          "{2}s".format(rule, path, target_type))
     # If paths are good check artifact contents
     else:
       # FIXME: sha256 should not be hardcoded but be a setting instead
