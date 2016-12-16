@@ -47,7 +47,7 @@ def main():
             ["CREATE", "*"],
         ],
         "product_matchrules": [
-            ["MATCH", "PRODUCT", "foo.py", "AS", "foo.py",
+            ["MATCH", "PRODUCT", "foo.py",
                 "FROM", "write-code"],
             # FIXME: See material_matchrules above
             ["CREATE", "*"],

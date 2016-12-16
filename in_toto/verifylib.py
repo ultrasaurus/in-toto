@@ -251,32 +251,40 @@ def verify_all_steps_command_alignment(layout, links_dict):
 def verify_match_rule(rule, artifact_queue, artifacts, links):
   """
   <Purpose>
-    Verifies that target path pattern - 3rd or 5th element of rule - matches
-    at least one file in target artifacts. This might conflict with
-    general understanding of glob patterns (especially "*").
 
-    Further verifies that each matched target artifact has a corresponding
-    source artifact with a matching hash in the passed artifact dictionary and
-    that this artifact in also the artifact queue.
+    Matchrules link in-toto steps together. That is, they ensure that the
+    specified artifacts were not modified outside of an in-toto step, neither
+    their path or file name nor their content.
 
-    This guarantees that the target artifact was reported by the target Step
-    and the step that is being verified reported to use an artifact with the
-    same hash, as required by the matchrule.
+    Matchrules operate on two sets of artifacts, source artifacts and target
+    artifacts.
 
-  <Note>
-    In case the explicit ("AS", "<target path pattern>") part of the rule is
-    omitted the 3rd element of the rule (path pattern) is used to match
-    target and source artifacts implicitly.
+    Source artifacts are materials or products, depending on whether the
+    matchrule is listed in the material_matchrules or product_matrchules
+    field of a Step or Inspection. They are reported by Link metadata that
+    relates to the Step or Inspection that contains the rule.
+    Furthermore, only artifacts that are in the artifact_queue, i.e. they have
+    not been matched in a previous rule of this Step or Inspection are used.
+
+    Target artifacts are materials or products, depending on the second keyword
+    in the matchrule list. They are reported by the Link metadata that relates
+    to the Step specified by the last argument of the rule.
+
+  <Notes>
+    Currently matchrule target can only be Steps on not Inspections. The
+    reason for this is unclear. Therefor this is likely to change.
+
+    Historical: Matchrules used to have an optional second path pattern
+    parameter, to allow path and file renames outside of in-toto steps.
+    This lead to problems, cf.
+    https://github.com/in-toto/in-toto/issues/43#issuecomment-267472109
+
 
   <Arguments>
     rule:
             The rule to be verified. Format is one of:
             ["MATCH", "MATERIAL", "<path pattern>", "FROM", "<step name>"]
             ["MATCH", "PRODUCT", "<path pattern>", "FROM", "<step name>"]
-            ["MATCH", "MATERIAL", "<path pattern>", "AS",
-                "<target path pattern>", "FROM", "<step name>"]
-            ["MATCH", "PRODUCT", "<path pattern>", "AS",
-                "<target path pattern>", "FROM", "<step name>"]
 
     artifact_queue:
             A list of artifact paths that haven't been matched by a previous
@@ -287,11 +295,10 @@ def verify_match_rule(rule, artifact_queue, artifacts, links):
             extracted from, materials or products of the step or inspection the
             rule was extracted from.
             The format is:
-            {
-              <path> : HASHDICTS
-            }
-             with artifact paths as keys
-            and HASHDICTS as values.
+              {
+                <path> : HASHDICTS
+              }
+            with artifact paths as keys and HASHDICTS as values.
 
     links:
             A dictionary of Link objects with Link names as keys.
@@ -316,8 +323,8 @@ def verify_match_rule(rule, artifact_queue, artifacts, links):
 
   """
   check_matchrule_syntax(rule)
+
   path_pattern = rule[2]
-  target_path_pattern = rule[4] if len(rule) == 7 else path_pattern
   target_type = rule[1].lower()
   target_name = rule[-1]
 
@@ -327,43 +334,50 @@ def verify_match_rule(rule, artifact_queue, artifacts, links):
   elif target_type == "product":
     target_artifacts = links[target_name].products
 
-  matched_target_artifacts = fnmatch.filter(target_artifacts.keys(),
-      target_path_pattern)
+  filtered_source_artifacts = fnmatch.filter(artifacts.keys(),
+      path_pattern)
+  filtered_target_artifacts = fnmatch.filter(target_artifacts.keys(),
+      path_pattern)
 
-  if not matched_target_artifacts:
-    raise RuleVerficationFailed("Rule {0} failed, path pattern '{1}' did not "
-      "match any {2}s in target link '{3}'"
-      .format(rule, target_path_pattern, target_type, target_name))
+  # Filtered source artifacts that have not been matched by another rule
+  #FIXME: We will probaly also need a target_artifact queue
+  queued_source_artifacts = set(filtered_source_artifacts) & set(artifact_queue)
 
-  inverted_artifacts = in_toto.util.flatten_and_invert_artifact_dict(artifacts)
+  source_artifacts_cnt = len(queued_source_artifacts)
+  target_artifacts_cnt = len(filtered_target_artifacts)
 
-  # FIXME: sha256 should not be hardcoded but be a setting instead
-  hash_algorithm = "sha256"
+  if source_artifacts_cnt != target_artifacts_cnt:
+    raise RuleVerficationFailed("Rule {0} failed, path pattern '{1}' found "
+      "{2} queued source artifacts and {3} target {4}s. Must be equal."
+      .format(rule, path_pattern, source_artifacts_cnt, target_artifacts_cnt,
+      target_type))
 
-  for target_path in matched_target_artifacts:
-    match_hash = target_artifacts[target_path][hash_algorithm]
-    # Look if there is a source artifact that matches the hash
-    try:
-      source_path = inverted_artifacts[match_hash]
-    except KeyError as e:
-      raise RuleVerficationFailed("Rule {0} failed, target hash of '{1}' "
-          "could not be found in source artifacts".format(rule, target_path))
+
+  # Test if each source artifact (path) that was filtered by the path pattern
+  # and also appears in the artifact queue has an equivalent (by path and hash)
+  # artifact in the target artifacts dictionary.
+
+  # Note that below condition which checks if the source artifact is in the
+  # target artifacts implicitly checks if the source artifact is also in the
+  # list of filtered target artifacts, because the same path pattern was applied
+  # on source and target.
+  for path in queued_source_artifacts:
+    # Check artifact paths
+    if path not in target_artifacts:
+      raise RuleVerficationFailed("Rule {0} failed, '{1}' not in target "
+          "{3}s".format(rule, path, target_type))
+    # If paths are good check artifact contents
     else:
-      # The matched source artifact's path must be in the artifact queue
-      if source_path not in artifact_queue:
-        raise RuleVerficationFailed("Rule {0} failed, target hash of '{1}' "
-            "could not be found (was matched before)".format(rule, source_path))
+      # FIXME: sha256 should not be hardcoded but be a setting instead
+      hash_algo = "sha256"
+      if artifacts[path][hash_algo] != target_artifacts[path][hash_algo]:
+        raise RuleVerficationFailed("Rule {0} failed, hashes of '{1}' in source"
+          " and target artifacts do not match. The artifact has changed"
+          .format(rule, path, target_type))
 
-      # and it must match with path pattern.
-      elif not fnmatch.filter([source_path], path_pattern):
-        raise RuleVerficationFailed("Rule {0} failed, target hash of '{1}' "
-          "matches hash of '{2}' in source artifacts but should match '{3}')"
-          .format(rule, target_path, source_path, path_pattern))
-
-      else:
-        artifact_queue.remove(source_path)
-
-  return artifact_queue
+  # All filtered source artifacts can be removed from the artifact list
+  # if something was
+  return list(set(artifact_queue) - set(queued_source_artifacts))
 
 
 def verify_create_rule(rule, artifact_queue):

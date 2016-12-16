@@ -62,23 +62,19 @@ class TestMatchruleSyntax(unittest.TestCase):
     with self.assertRaises(FormatError):
       check_matchrule_syntax(rule)
 
-    rule = ["MATCH", "PRODUCT", "foo", "NOT-AS", "otherpath", "FROM", "step"]
-    with self.assertRaises(FormatError):
-      check_matchrule_syntax(rule)
-
     rule = ["MATCH", "PRODUCT", "foo", "FROM"]
     with self.assertRaises(FormatError):
       check_matchrule_syntax(rule)
 
-    rule = ["MATCH", "PRODUCT", "foo", "AS", "FROM", "step"]
+    # The optional AS path pattern is deprecated
+    rule = ["MATCH", "PRODUCT", "foo", "AS", "bar", "FROM", "step"]
     with self.assertRaises(FormatError):
       check_matchrule_syntax(rule)
 
     rule = ["MATCH", "PRODUCT", "foo", "FROM", "step"]
     check_matchrule_syntax(rule)
 
-    rule = ["MATCH", "PRODUCT", "foo", "AS", "bar", "FROM", "step"]
-    check_matchrule_syntax(rule)
+
 
 if __name__ == '__main__':
 

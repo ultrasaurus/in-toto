@@ -236,32 +236,6 @@ class TestVerifyMatchRule(unittest.TestCase):
         verify_match_rule(rule, queue, artifacts, self.links), [])
 
 
-  def test_pass_match_material_as_name(self):
-    """["MATCH", "MATERIAL", "dist/foo", "AS", "foo", "FROM", "link-1"],
-    source artifact dist/foo and target material foo hashes match, passes. """
-
-    rule = ["MATCH", "MATERIAL", "dist/foo", "AS", "foo", "FROM", "link-1"]
-    artifacts = {
-      "dist/foo": {"sha256": self.sha256_foo}
-    }
-    queue = artifacts.keys()
-    self.assertListEqual(
-        verify_match_rule(rule, queue, artifacts, self.links), [])
-
-
-  def test_pass_match_product_as_name(self):
-    """["MATCH", "PRODUCT", "dist/bar", "AS", "bar", "FROM", "link-1"],
-    source artifact dist/bar and target product bar hahes match, passes. """
-
-    rule = ["MATCH", "PRODUCT", "dist/bar", "AS", "bar", "FROM", "link-1"]
-    artifacts = {
-      "dist/bar": {"sha256": self.sha256_bar}
-    }
-    queue = artifacts.keys()
-    self.assertListEqual(
-        verify_match_rule(rule, queue, artifacts, self.links), [])
-
-
   def test_pass_match_material_star(self):
     """["MATCH", "MATERIAL", "foo*", "FROM", "link-1"],
     source artifacts foo* match target materials foo* hashes, passes. """
@@ -290,59 +264,10 @@ class TestVerifyMatchRule(unittest.TestCase):
         verify_match_rule(rule, queue, artifacts, self.links), [])
 
 
-  def test_pass_match_material_as_star(self):
-    """["MATCH", "MATERIAL", "dist/*", "AS", "foo*", "FROM", "link-1"],
-    source artifacts dist/* match target materials foo* hashes, passes. """
-
-    rule = ["MATCH", "MATERIAL", "dist/*", "AS", "foo*", "FROM", "link-1"]
-    artifacts = {
-      "dist/foo": {"sha256": self.sha256_foo},
-      "dist/foobar": {"sha256": self.sha256_foobar}
-    }
-    queue = artifacts.keys()
-    self.assertListEqual(
-        verify_match_rule(rule, queue, artifacts, self.links), [])
-
-
-  def test_pass_match_product_as_star(self):
-    """["MATCH", "PRODUCT", "dist/*", "AS", "bar*", "FROM", "link-1"],
-    source artifacts dist/* match target products bar* hashes, passes. """
-
-    rule = ["MATCH", "PRODUCT", "dist/*", "AS", "bar*", "FROM", "link-1"]
-    artifacts = {
-      "dist/bar": {"sha256": self.sha256_bar},
-      "dist/barfoo": {"sha256": self.sha256_barfoo}
-    }
-    queue = artifacts.keys()
-    self.assertListEqual(
-        verify_match_rule(rule, queue, artifacts, self.links), [])
-
-
-  def test_fail_pattern_matched_nothing_in_target_materials(self):
-    """["MATCH", "MATERIAL", "bar", "FROM", "link-1"],
-    pattern bar does not match any materials in target, fails. """
-
-    rule = ["MATCH", "MATERIAL", "bar", "FROM", "link-1"]
-    with self.assertRaises(RuleVerficationFailed):
-      verify_match_rule(rule, [], [], self.links)
-
-
-  def test_fail_pattern_matched_nothing_in_target_products(self):
-    """["MATCH", "PRODUCT", "foo", "FROM", "link-1"],
-    pattern foo does not match any products in target, fails. """
-
-    rule = ["MATCH", "PRODUCT", "foo", "FROM", "link-1"]
-    with self.assertRaises(RuleVerficationFailed):
-      # Pass an empty artifacts queue and artifacts dictionary
-      # to match nothing
-      verify_match_rule(rule, [], [], self.links)
-
-
-  def test_fail_target_hash_not_found_in_source_artifacts(self):
-    """["MATCH", "MATERIAL", "foo", "FROM", "link-1"],
-    no source artifact matches target material's hash, fails. """
-
-    rule = ["MATCH", "MATERIAL", "foo", "FROM", "link-1"]
+  def test_fail_more_artifacts_in_target_than_in_source(self):
+    """["MATCH", "PRODUCT", "bar*", "FROM", "link-1"],
+    pattern found to artifacts in target, only one in source, fails."""
+    rule = ["MATCH", "PRODUCT", "bar*", "FROM", "link-1"]
     artifacts = {
       "bar": {"sha256": self.sha256_bar},
     }
@@ -351,26 +276,52 @@ class TestVerifyMatchRule(unittest.TestCase):
       verify_match_rule(rule, queue, artifacts, self.links)
 
 
-  def test_fail_hash_not_found_in_artifacts_queue(self):
-    """["MATCH", "MATERIAL", "foo", "FROM", "link-1"],
-    no source artifact still in queue matches target material's hash, fails. """
+  def test_fail_artifact_found_in_source_not_in_target(self):
+    """["MATCH", "MATERIAL", "bar", "FROM", "link-1"],
+    pattern found in source but not in target, fails. """
+    rule = ["MATCH", "MATERIAL", "bar", "FROM", "link-1"]
 
-    rule = ["MATCH", "MATERIAL", "foo", "FROM", "link-1"]
     artifacts = {
-      "foo": {"sha256": self.sha256_foo},
+      "bar": {"sha256": self.sha256_bar},
     }
-    queue = []
+    queue = artifacts.keys()
     with self.assertRaises(RuleVerficationFailed):
       verify_match_rule(rule, queue, artifacts, self.links)
 
 
-  def test_fail_hash_matched_but_wrong_name(self):
+  def test_fail_artifact_found_in_target_not_in_source(self):
     """["MATCH", "MATERIAL", "foo", "FROM", "link-1"],
-    no source artifact matches target material's hash and path pattern, fails. """
+    pattern found in target but not in source, fails. """
+    rule = ["MATCH", "MATERIAL", "foo", "FROM", "link-1"]
 
-    rule = ["MATCH", "MATERIAL", "dist/foo", "AS", "foo", "FROM", "link-1"]
+    artifacts = {
+      "bar": {"sha256": self.sha256_bar},
+    }
+    queue = artifacts.keys()
+    with self.assertRaises(RuleVerficationFailed):
+      verify_match_rule(rule, queue, artifacts, self.links)
+
+
+  def test_fail_artifact_found_in_target_not_in_source_queue(self):
+    """["MATCH", "MATERIAL", "foo", "FROM", "link-1"],
+    pattern found in target and source but not in source queue, fails. """
+    rule = ["MATCH", "MATERIAL", "foo", "FROM", "link-1"]
+
     artifacts = {
       "foo": {"sha256": self.sha256_foo},
+    }
+    queue = ["bar"]
+    with self.assertRaises(RuleVerficationFailed):
+      verify_match_rule(rule, queue, artifacts, self.links)
+
+
+  def test_fail_hashes_do_not_match(self):
+    """["MATCH", "MATERIAL", "foo", "FROM", "link-1"],
+    pattern found but hashes do not match, fails. """
+
+    rule = ["MATCH", "MATERIAL", "foo", "FROM", "link-1"]
+    artifacts = {
+      "foo": {"sha256": self.sha256_bar},
     }
     queue = artifacts.keys()
     with self.assertRaises(RuleVerficationFailed):
@@ -418,10 +369,15 @@ class TestVerifyItemRules(unittest.TestCase):
       ["MATCH", "PRODUCT", "foo", "FROM", "link-1"],
       ["CREATE", "foo"]
     ]
-
     with self.assertRaises(RuleVerficationFailed):
       verify_item_rules(self.item_name, rules, self.artifacts, self.links)
 
+    rules = [
+      ["CREATE", "foo"],
+      ["MATCH", "PRODUCT", "foo", "FROM", "link-1"]
+    ]
+    with self.assertRaises(RuleVerficationFailed):
+      verify_item_rules(self.item_name, rules, self.artifacts, self.links)
 
   def test_fail_unmatched_artifacts(self):
     """Fail with unmatched artifacts after executing all rules. """
@@ -462,8 +418,7 @@ class TestVerifyAllItemRules(unittest.TestCase):
         ),
         Step(name="package",
             material_matchrules=[
-                ["MATCH", "PRODUCT", "foo",
-                    "AS", "foo", "FROM", "write-code"]
+                ["MATCH", "PRODUCT", "foo", "FROM", "write-code"]
             ],
             product_matchrules=[
                 ["CREATE", "foo.tar.gz"],
@@ -478,8 +433,7 @@ class TestVerifyAllItemRules(unittest.TestCase):
                 ["MATCH", "PRODUCT", "foo.tar.gz", "FROM", "package"]
             ],
             product_matchrules=[
-                ["MATCH", "PRODUCT", "dir/foo", "AS", "foo",
-                    "FROM", "write-code"]
+                ["MATCH", "PRODUCT", "foo", "FROM", "write-code"]
             ]
         )
     ]
@@ -514,7 +468,7 @@ class TestVerifyAllItemRules(unittest.TestCase):
                 }
             },
             products={
-                "dir/foo": {
+                "foo": {
                     "sha256": self.sha256_foo
                 },
             }

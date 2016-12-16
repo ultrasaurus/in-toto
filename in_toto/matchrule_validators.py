@@ -28,15 +28,10 @@ def _validate_match_rule(keywords):
 
   if len(keywords) == 5:
     rule, artifact, path_pattern, from_keyword, step = keywords
-    as_keyword = "AS"
-    target_path_pattern = path_pattern
 
-  elif len(keywords) == 7:
-    (rule, artifact, path_pattern, as_keyword, target_path_pattern, from_keyword,
-        step) = keywords
   else:
-    raise FormatError("Wrong rule format, should be: MATCH (MATERIAL/PRODUCT)"
-      "<path_pattern> [AS <target_path_pattern>] FROM <step>.\n\t"
+    raise FormatError("Wrong rule format, should be: MATCH (MATERIAL|PRODUCT) "
+      "<path_pattern> FROM <step>.\n\t"
       "Got: {}".format(" ".join(keywords)))
 
   if rule != "MATCH" and rule.upper() != "MATCH":
@@ -44,9 +39,6 @@ def _validate_match_rule(keywords):
 
   if from_keyword != "FROM" and from_keyword.upper() != "FROM":
     raise FormatError("FROM should come before step")
-
-  if as_keyword != "AS" and as_keyword.upper() != "AS":
-    raise FormatError("AS should come after the step name")
 
   if artifact not in MATERIAL_OR_PRODUCT and \
       artifact.upper() not in MATERIAL_OR_PRODUCT:
