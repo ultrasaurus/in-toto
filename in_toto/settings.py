@@ -65,8 +65,13 @@ ED25519_CRYPTO_LIBRARY = 'ed25519'
 # 'pyca-cryptography']
 GENERAL_CRYPTO_LIBRARY = 'pycrypto'
 
-
 # Debug level INFO shows a bunch of stuff that is happening
 LOG_LEVEL = logging.INFO
 # Debug level CRITICAL only shows in_toto-verify passing and failing
 #LOG_LEVEL = logging.CRITICAL
+
+# Used as base path for --materials and --products arguments when running
+# in-toto-run/in-toto-record
+# FIXME: This is likely to become a command line argument
+# FIXME: Do we want different base paths for materials and products?
+ARTIFACT_BASE_PATH = None
