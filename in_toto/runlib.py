@@ -28,6 +28,7 @@ import sys
 import os
 import tempfile
 import logging
+from simple_settings import settings
 
 # POSIX users (Linux, BSD, etc.) are strongly encouraged to
 # install and use the much more recent subprocess32
@@ -72,6 +73,27 @@ def _normalize_path(path):
   return path
 
 
+def _add_base_path_to_artifacts(artifacts):
+  """Prefixes each artifact from the artifacts list with the basepath.
+  Replaces a single dot with basepath '.'.
+  """
+
+  if not settings.ARTIFACT_BASE_PATH:
+    return artifacts
+
+  full_paths = []
+  for path in artifacts:
+    if path == ".":
+      full_path = settings.ARTIFACT_BASE_PATH
+    else:
+      full_path = settings.ARTIFACT_BASE_PATH + path
+
+    full_paths.append(full_path)
+
+  return full_paths
+
+
+
 def record_artifacts_as_dict(artifacts):
   """
   <Purpose>
@@ -100,6 +122,8 @@ def record_artifacts_as_dict(artifacts):
 
   if not artifacts:
     return artifacts_dict
+
+  artifacts = _add_base_path_to_artifacts(artifacts)
 
   for artifact in artifacts:
 
