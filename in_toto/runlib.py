@@ -119,10 +119,17 @@ def record_artifacts_as_dict(artifacts):
   if not artifacts:
     return artifacts_dict
 
+  # Temporarily change into base path dir if set
+  if settings.ARTIFACT_BASE_PATH:
+    original_cwd = os.getcwd()
+    try:
+      os.chdir(settings.ARTIFACT_BASE_PATH)
+    except OSError as e:
+      raise OSError("Review your ARTIFACT_BASE_PATH setting - {}".format(e))
+
   # Exclude excluded files and dirs from the first level of tree traversel
   for artifact in _apply_exclude_patterns(artifacts,
         settings.ARTIFACT_EXCLUDES):
-
     if not os.path.exists(artifact):
       log.warning("path: {} does not exist, skipping..".format(artifact))
       continue
@@ -141,6 +148,10 @@ def record_artifacts_as_dict(artifacts):
         for name in _apply_exclude_patterns(files, settings.ARTIFACT_EXCLUDES):
           filepath = os.path.join(root, name)
           artifacts_dict[_normalize_path(filepath)] = _hash_artifact(filepath)
+
+  # Change back to where original current working dir
+  if settings.ARTIFACT_BASE_PATH:
+    os.chdir(original_cwd)
 
   return artifacts_dict
 
