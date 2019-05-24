@@ -14,8 +14,11 @@ in-toto has the following goals for this year:
 
 ### CII Silver badge
 
-in-toto is already marked as "passing criteria" under the Core Infrastructure
-Initiative best practices badge. This year we aim to upgrade our rating to
+in-toto is already marked as 
+[passing](https://bestpractices.coreinfrastructure.org/en/projects/1523) 
+under the 
+[Core Infrastructure Initiative best practices badge](https://bestpractices.coreinfrastructure.org).
+This year we aim to upgrade our rating to
 Silver. To work towards this goal, we'll review and comply with the few
 missing requirements for the silver badge.
 
